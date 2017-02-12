@@ -8,23 +8,25 @@ Case: Trying to show different layout in portrait and landscape. In landscape im
 
 Ascii pic for better understanding:
 Portrait:
----ASStackLayoutSpec---
-|   ---ASDisplayNode---   |
-|   |    ASImageNode     |    |
-|   |     ASTextNode       |    |
-|    ---------------------    |
+```
+ ----ASStackLayoutSpec-----
+|   ---ASDisplayNode---    |
+|  |   ASImageNode     |   |
+|  |    ASTextNode     |   |
+|   --------------------   |
 ---------------------------
-
+```
 
 Landscape:
 
 Portrait:
+```
 -------------ASStackLayoutSpec-----------
-|                              ---ASDisplayNode---      |
-| ASImageNode    |      ASTextNode        |      |
-|                             ----------------------      |
----------------------------------------------
-
+|                ---ASDisplayNode---    |
+| ASImageNode   |   ASTextNode      |   |
+|                -------------------    |
+-----------------------------------------
+```
 Q: Why you use that proxy node? It has no sense there.
 A: The real case was that proxy node was ASScrollNode or ASTableNode. So in portrait all content was scrollable but in landscape only text was scrollable, image had fixed position. In ascii pic and sample project I use simple ASDisplayNode for more clarity.
 
