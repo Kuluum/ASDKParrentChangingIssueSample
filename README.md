@@ -9,6 +9,7 @@ Should be tested on iPhone.
 Case: Trying to show different layout in portrait and landscape. In landscape image placed on root node, but in portrait it placed on proxy node that placed on root node.
 
 Ascii pic for better understanding:
+
 Portrait:
 
 ```
