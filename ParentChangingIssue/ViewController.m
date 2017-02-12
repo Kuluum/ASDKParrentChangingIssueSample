@@ -11,8 +11,7 @@
 @interface MyNode: ASDisplayNode
 @property (strong, nonatomic) ASTextNode *textNode;
 @property (strong, nonatomic) ASImageNode *imageNode;
-@property (strong, nonatomic) ASDisplayNode *additionalNode;
-@property (nonatomic, strong) ASDisplayNode *separatorNode;
+@property (strong, nonatomic) ASDisplayNode *proxyNode;
 @end
 
 @interface ViewController ()
@@ -47,15 +46,10 @@
         _imageNode.contentMode = UIViewContentModeScaleAspectFit;
         _imageNode.style.preferredSize = self.imageNode.image.size;
         
-        _separatorNode = [[ASDisplayNode alloc] init];
-        _separatorNode.style.width = ASDimensionMake(1);
-        _separatorNode.backgroundColor = [UIColor grayColor];
+        _proxyNode = [[ASDisplayNode alloc] init];
+        _proxyNode.automaticallyManagesSubnodes = YES;
         
-        
-        _additionalNode = [[ASDisplayNode alloc] init];
-        _additionalNode.automaticallyManagesSubnodes = YES;
-        
-        [_additionalNode setLayoutSpecBlock:^ASLayoutSpec * _Nonnull(__kindof ASDisplayNode * _Nonnull node, ASSizeRange constrainedSize) {
+        [_proxyNode setLayoutSpecBlock:^ASLayoutSpec * _Nonnull(__kindof ASDisplayNode * _Nonnull node, ASSizeRange constrainedSize) {
             ASStackLayoutSpec *stack = [ASStackLayoutSpec verticalStackLayoutSpec];
             stack.spacing = 8.0;
             if (self.asyncTraitCollection.verticalSizeClass == UIUserInterfaceSizeClassCompact) {
@@ -75,11 +69,11 @@
 }
 
 -(ASLayoutSpec *)layoutSpecThatFits:(ASSizeRange)constrainedSize {
-    ASLayoutSpec *additionalSpec = [ASCenterLayoutSpec centerLayoutSpecWithCenteringOptions:ASCenterLayoutSpecCenteringXY
+    ASLayoutSpec *proxySpec = [ASCenterLayoutSpec centerLayoutSpecWithCenteringOptions:ASCenterLayoutSpecCenteringXY
                                                                               sizingOptions:ASCenterLayoutSpecSizingOptionMinimumXY
-                                                                                      child:_additionalNode];
-    additionalSpec.style.width = ASDimensionMake(320);
-    additionalSpec.style.flexShrink = YES;
+                                                                                      child:_proxyNode];
+    proxySpec.style.width = ASDimensionMake(320);
+    proxySpec.style.flexShrink = YES;
     ASWrapperLayoutSpec *imageWrapper = [ASWrapperLayoutSpec wrapperWithLayoutElement:_imageNode];
     
     if (self.asyncTraitCollection.verticalSizeClass == UIUserInterfaceSizeClassCompact) {
@@ -87,10 +81,10 @@
                                                        spacing:8
                                                 justifyContent:ASStackLayoutJustifyContentStart
                                                     alignItems:ASStackLayoutAlignItemsStart
-                                                      children:@[imageWrapper, _separatorNode, additionalSpec]];
+                                                      children:@[imageWrapper, proxySpec]];
     }
     else {
-        return additionalSpec;
+        return proxySpec;
     }
 }
 
