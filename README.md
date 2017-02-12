@@ -18,8 +18,6 @@ Portrait:
 ```
 
 Landscape:
-
-Portrait:
 ```
 -------------ASStackLayoutSpec-----------
 |                ---ASDisplayNode---    |
