@@ -49,17 +49,21 @@
         _proxyNode = [[ASDisplayNode alloc] init];
         _proxyNode.automaticallyManagesSubnodes = YES;
         
+        __weak typeof(self) weakSelf = self;
         [_proxyNode setLayoutSpecBlock:^ASLayoutSpec * _Nonnull(__kindof ASDisplayNode * _Nonnull node, ASSizeRange constrainedSize) {
             ASStackLayoutSpec *stack = [ASStackLayoutSpec verticalStackLayoutSpec];
             stack.spacing = 8.0;
+            stack.horizontalAlignment = ASHorizontalAlignmentMiddle;
+            stack.verticalAlignment = ASVerticalAlignmentCenter;
+            
             if (self.asyncTraitCollection.verticalSizeClass == UIUserInterfaceSizeClassCompact) {
-                stack.children = @[_textNode];
+                stack.children = @[weakSelf.textNode];
             }
             else {
-                stack.children = @[_imageNode, _textNode];
+                stack.children = @[weakSelf.imageNode, weakSelf.textNode];
                 
                 // Uncomment to check that image works in landscape.
-//                stack.children = @[_textNode];
+//                stack.children = @[weakSelf.textNode];
             }
             return stack;
         }];
@@ -70,7 +74,7 @@
 
 -(ASLayoutSpec *)layoutSpecThatFits:(ASSizeRange)constrainedSize {
     ASLayoutSpec *proxySpec = [ASCenterLayoutSpec centerLayoutSpecWithCenteringOptions:ASCenterLayoutSpecCenteringXY
-                                                                              sizingOptions:ASCenterLayoutSpecSizingOptionMinimumXY
+                                                                              sizingOptions:ASCenterLayoutSpecSizingOptionDefault
                                                                                       child:_proxyNode];
     proxySpec.style.width = ASDimensionMake(320);
     proxySpec.style.flexShrink = YES;
@@ -80,7 +84,7 @@
         return [ASStackLayoutSpec stackLayoutSpecWithDirection:ASStackLayoutDirectionHorizontal
                                                        spacing:8
                                                 justifyContent:ASStackLayoutJustifyContentStart
-                                                    alignItems:ASStackLayoutAlignItemsStart
+                                                    alignItems:ASStackLayoutAlignItemsStretch
                                                       children:@[imageWrapper, proxySpec]];
     }
     else {

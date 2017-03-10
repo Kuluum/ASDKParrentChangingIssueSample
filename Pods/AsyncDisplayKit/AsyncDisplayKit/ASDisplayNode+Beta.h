@@ -8,9 +8,14 @@
 //  of patent rights can be found in the PATENTS file in the same directory.
 //
 
-#import "ASDisplayNode.h"
-#import "ASLayoutRangeType.h"
-#import "ASEventLog.h"
+#import <AsyncDisplayKit/ASAvailability.h>
+#import <AsyncDisplayKit/ASDisplayNode.h>
+#import <AsyncDisplayKit/ASLayoutRangeType.h>
+#import <AsyncDisplayKit/ASEventLog.h>
+
+#if YOGA
+#import <Yoga/Yoga.h>
+#endif
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -20,15 +25,15 @@ void ASPerformBlockOnBackgroundThread(void (^block)()); // DISPATCH_QUEUE_PRIORI
 ASDISPLAYNODE_EXTERN_C_END
 
 #if ASEVENTLOG_ENABLE
-#define ASDisplayNodeLogEvent(node, ...) [node.eventLog logEventWithBacktrace:(AS_SAVE_EVENT_BACKTRACES ? [NSThread callStackSymbols] : nil) format:__VA_ARGS__]
+  #define ASDisplayNodeLogEvent(node, ...) [node.eventLog logEventWithBacktrace:(AS_SAVE_EVENT_BACKTRACES ? [NSThread callStackSymbols] : nil) format:__VA_ARGS__]
 #else
-#define ASDisplayNodeLogEvent(node, ...)
+  #define ASDisplayNodeLogEvent(node, ...)
 #endif
 
 #if ASEVENTLOG_ENABLE
-#define ASDisplayNodeGetEventLog(node) node.eventLog
+  #define ASDisplayNodeGetEventLog(node) node.eventLog
 #else
-#define ASDisplayNodeGetEventLog(node) nil
+  #define ASDisplayNodeGetEventLog(node) nil
 #endif
 
 /**
@@ -143,8 +148,42 @@ typedef struct {
  * Note: this has nothing to do with -[CALayer shouldRasterize], which doesn't work with ASDisplayNode's asynchronous
  * rendering model.
  */
-@property (nonatomic, assign) BOOL shouldRasterizeDescendants;
+@property (nonatomic, assign) BOOL shouldRasterizeDescendants ASDISPLAYNODE_DEPRECATED_MSG("Deprecated in version 2.2");
 
 @end
+
+#pragma mark - Yoga Layout Support
+
+#if YOGA
+
+@interface ASDisplayNode (Yoga)
+
+@property (nonatomic, strong) NSArray *yogaChildren;
+
+- (void)addYogaChild:(ASDisplayNode *)child;
+- (void)removeYogaChild:(ASDisplayNode *)child;
+
+// This method should not normally be called directly.
+- (ASLayout *)calculateLayoutFromYogaRoot:(ASSizeRange)rootConstrainedSize;
+
+@end
+
+@interface ASLayoutElementStyle (Yoga)
+
+@property (nonatomic, assign, readwrite) ASStackLayoutDirection direction;
+@property (nonatomic, assign, readwrite) CGFloat spacing;
+@property (nonatomic, assign, readwrite) ASStackLayoutJustifyContent justifyContent;
+@property (nonatomic, assign, readwrite) ASStackLayoutAlignItems alignItems;
+@property (nonatomic, assign, readwrite) YGPositionType positionType;
+@property (nonatomic, assign, readwrite) ASEdgeInsets position;
+@property (nonatomic, assign, readwrite) ASEdgeInsets margin;
+@property (nonatomic, assign, readwrite) ASEdgeInsets padding;
+@property (nonatomic, assign, readwrite) ASEdgeInsets border;
+@property (nonatomic, assign, readwrite) CGFloat aspectRatio;
+@property (nonatomic, assign, readwrite) YGWrap flexWrap;
+
+@end
+
+#endif
 
 NS_ASSUME_NONNULL_END

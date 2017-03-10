@@ -11,8 +11,8 @@
 #pragma once
 
 #import <UIKit/UIKit.h>
+#import <AsyncDisplayKit/ASBlockTypes.h>
 #import <AsyncDisplayKit/ASDimension.h>
-#import <AsyncDisplayKit/ASFlowLayoutController.h>
 #import <AsyncDisplayKit/ASEventLog.h>
 #ifdef __cplusplus
 #import <vector>
@@ -29,14 +29,9 @@ NS_ASSUME_NONNULL_BEGIN
 @class ASCellNode;
 @class ASDataController;
 @class _ASHierarchyChangeSet;
-@protocol ASEnvironment;
+@protocol ASTraitEnvironment;
 
 typedef NSUInteger ASDataControllerAnimationOptions;
-
-/**
- * ASCellNode creation block. Used to lazily create the ASCellNode instance for a specified indexPath.
- */
-typedef ASCellNode * _Nonnull(^ASCellNodeBlock)();
 
 extern NSString * const ASDataControllerRowNodeKind;
 extern NSString * const ASCollectionInvalidUpdateException;
@@ -71,7 +66,7 @@ extern NSString * const ASCollectionInvalidUpdateException;
 @end
 
 @protocol ASDataControllerEnvironmentDelegate
-- (id<ASEnvironment>)dataControllerEnvironment;
+- (id<ASTraitEnvironment>)dataControllerEnvironment;
 @end
 
 /**
@@ -116,8 +111,7 @@ extern NSString * const ASCollectionInvalidUpdateException;
  * will be updated asynchronously. The dataSource must be updated to reflect the changes before these methods has been called.
  * For each data updating, the corresponding methods in delegate will be called.
  */
-@protocol ASFlowLayoutControllerDataSource;
-@interface ASDataController : NSObject <ASFlowLayoutControllerDataSource>
+@interface ASDataController : NSObject
 
 - (instancetype)initWithDataSource:(id<ASDataControllerSource>)dataSource eventLog:(nullable ASEventLog *)eventLog NS_DESIGNATED_INITIALIZER;
 

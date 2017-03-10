@@ -8,12 +8,12 @@
 //  of patent rights can be found in the PATENTS file in the same directory.
 //
 
-#import "ASScrollNode.h"
-#import "ASDisplayNodeExtras.h"
-#import "ASDisplayNode+FrameworkPrivate.h"
-#import "ASDisplayNode+FrameworkSubclasses.h"
-#import "ASLayout.h"
-#import "_ASDisplayLayer.h"
+#import <AsyncDisplayKit/ASScrollNode.h>
+#import <AsyncDisplayKit/ASDisplayNodeExtras.h>
+#import <AsyncDisplayKit/ASDisplayNode+FrameworkPrivate.h>
+#import <AsyncDisplayKit/ASDisplayNode+FrameworkSubclasses.h>
+#import <AsyncDisplayKit/ASLayout.h>
+#import <AsyncDisplayKit/_ASDisplayLayer.h>
 
 @interface ASScrollView : UIScrollView
 @end
@@ -56,6 +56,7 @@
 
 @implementation ASScrollNode
 {
+  ASScrollDirection _scrollableDirections;
   BOOL _automaticallyManagesContentSize;
   CGSize _contentCalculatedSizeFromLayout;
 }
@@ -70,12 +71,20 @@
                      restrictedToSize:(ASLayoutElementSize)size
                  relativeToParentSize:(CGSize)parentSize
 {
-  ASLayout *layout = [super calculateLayoutThatFits:constrainedSize
+  ASDN::MutexLocker l(__instanceLock__);  // Lock for using our instance variables.
+
+  ASSizeRange contentConstrainedSize = constrainedSize;
+  if (ASScrollDirectionContainsVerticalDirection(_scrollableDirections)) {
+    contentConstrainedSize.max.height = CGFLOAT_MAX;
+  }
+  if (ASScrollDirectionContainsHorizontalDirection(_scrollableDirections)) {
+    contentConstrainedSize.max.width = CGFLOAT_MAX;
+  }
+  
+  ASLayout *layout = [super calculateLayoutThatFits:contentConstrainedSize
                                    restrictedToSize:size
                                relativeToParentSize:parentSize];
-  
-  ASDN::MutexLocker l(__instanceLock__);  // Lock for using our two instance variables.
-  
+
   if (_automaticallyManagesContentSize) {
     // To understand this code, imagine we're containing a horizontal stack set within a vertical table node.
     // Our parentSize is fixed ~375pt width, but 0 - INF height.  Our stack measures 1000pt width, 50pt height.
@@ -124,6 +133,25 @@
 {
   ASDN::MutexLocker l(__instanceLock__);
   _automaticallyManagesContentSize = automaticallyManagesContentSize;
+  if (_automaticallyManagesContentSize == YES
+      && ASScrollDirectionContainsVerticalDirection(_scrollableDirections) == NO
+      && ASScrollDirectionContainsHorizontalDirection(_scrollableDirections) == NO) {
+    // Set the @default value, for more user-friendly behavior of the most
+    // common use cases of .automaticallyManagesContentSize.
+    _scrollableDirections = ASScrollDirectionVerticalDirections;
+  }
+}
+
+- (ASScrollDirection)scrollableDirections
+{
+  ASDN::MutexLocker l(__instanceLock__);
+  return _scrollableDirections;
+}
+
+- (void)setScrollableDirections:(ASScrollDirection)scrollableDirections
+{
+  ASDN::MutexLocker l(__instanceLock__);
+  _scrollableDirections = scrollableDirections;
 }
 
 @end

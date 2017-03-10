@@ -7,13 +7,13 @@
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
 //
-#if TARGET_OS_IOS
+
 #import <AVFoundation/AVFoundation.h>
-#import "ASDisplayNode+FrameworkSubclasses.h"
-#import "ASVideoNode.h"
-#import "ASEqualityHelpers.h"
-#import "ASInternalHelpers.h"
-#import "ASDisplayNodeExtras.h"
+#import <AsyncDisplayKit/ASDisplayNode+FrameworkSubclasses.h>
+#import <AsyncDisplayKit/ASVideoNode.h>
+#import <AsyncDisplayKit/ASEqualityHelpers.h>
+#import <AsyncDisplayKit/ASInternalHelpers.h>
+#import <AsyncDisplayKit/ASDisplayNodeExtras.h>
 
 static BOOL ASAssetIsEqual(AVAsset *asset1, AVAsset *asset2) {
   return ASObjectIsEqual(asset1, asset2)
@@ -90,9 +90,9 @@ static NSString * const kRate = @"rate";
 
 #pragma mark - Construction and Layout
 
-- (instancetype)init
+- (instancetype)initWithCache:(id<ASImageCacheProtocol>)cache downloader:(id<ASImageDownloaderProtocol>)downloader
 {
-  if (!(self = [super init])) {
+  if (!(self = [super initWithCache:cache downloader:downloader])) {
     return nil;
   }
 
@@ -809,4 +809,3 @@ static NSString * const kRate = @"rate";
 }
 
 @end
-#endif

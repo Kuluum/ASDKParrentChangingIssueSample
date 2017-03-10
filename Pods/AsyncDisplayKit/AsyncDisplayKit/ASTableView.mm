@@ -8,25 +8,27 @@
 //  of patent rights can be found in the PATENTS file in the same directory.
 //
 
-#import "ASTableViewInternal.h"
+#import <AsyncDisplayKit/ASTableViewInternal.h>
 
-#import "_ASCoreAnimationExtras.h"
-#import "_ASDisplayLayer.h"
-#import "_ASHierarchyChangeSet.h"
-#import "ASAssert.h"
-#import "ASAvailability.h"
-#import "ASBatchFetching.h"
-#import "ASCellNode+Internal.h"
-#import "ASDelegateProxy.h"
-#import "ASDisplayNodeExtras.h"
-#import "ASDisplayNode+FrameworkPrivate.h"
-#import "ASInternalHelpers.h"
-#import "ASLayout.h"
-#import "ASTableNode.h"
-#import "ASEqualityHelpers.h"
-#import "ASTableView+Undeprecated.h"
+#import <AsyncDisplayKit/_ASCoreAnimationExtras.h>
+#import <AsyncDisplayKit/_ASDisplayLayer.h>
+#import <AsyncDisplayKit/_ASHierarchyChangeSet.h>
+#import <AsyncDisplayKit/ASAssert.h>
+#import <AsyncDisplayKit/ASAvailability.h>
+#import <AsyncDisplayKit/ASBatchFetching.h>
+#import <AsyncDisplayKit/ASCellNode+Internal.h>
+#import <AsyncDisplayKit/ASDelegateProxy.h>
+#import <AsyncDisplayKit/ASDisplayNodeExtras.h>
+#import <AsyncDisplayKit/ASDisplayNode+FrameworkPrivate.h>
+#import <AsyncDisplayKit/ASInternalHelpers.h>
+#import <AsyncDisplayKit/ASLayout.h>
+#import <AsyncDisplayKit/ASTableNode.h>
+#import <AsyncDisplayKit/ASRangeController.h>
+#import <AsyncDisplayKit/ASEqualityHelpers.h>
+#import <AsyncDisplayKit/ASTableLayoutController.h>
+#import <AsyncDisplayKit/ASTableView+Undeprecated.h>
+#import <AsyncDisplayKit/ASBatchContext.h>
 
-static const ASSizeRange kInvalidSizeRange = {CGSizeZero, CGSizeZero};
 static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
 
 //#define LOG(...) NSLog(__VA_ARGS__)
@@ -75,11 +77,19 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
 {
   _node = node;
   
-  self.backgroundColor = node.backgroundColor;
-  self.selectionStyle = node.selectionStyle;
-  self.accessoryType = node.accessoryType;
-  self.separatorInset = node.seperatorInset;
-  self.clipsToBounds = node.clipsToBounds;
+  if (node) {
+    self.backgroundColor = node.backgroundColor;
+    self.selectionStyle = node.selectionStyle;
+    self.selectedBackgroundView = node.selectedBackgroundView;
+    self.separatorInset = node.separatorInset;
+    self.selectionStyle = node.selectionStyle;
+    self.accessoryType = node.accessoryType;
+    
+    // the following ensures that we clip the entire cell to it's bounds if node.clipsToBounds is set (the default)
+    // This is actually a workaround for a bug we are seeing in some rare cases (selected background view
+    // overlaps other cells if size of ASCellNode has changed.)
+    self.clipsToBounds = node.clipsToBounds;
+  }
   
   [node __setSelectedFromUIKit:self.selected];
   [node __setHighlightedFromUIKit:self.highlighted];
@@ -118,7 +128,7 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
   ASTableViewProxy *_proxyDataSource;
   ASTableViewProxy *_proxyDelegate;
 
-  ASFlowLayoutController *_layoutController;
+  ASTableLayoutController *_layoutController;
 
   ASRangeController *_rangeController;
 
@@ -141,7 +151,6 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
   CALayer *_retainedLayer;
 
   CGFloat _nodesConstrainedWidth;
-  BOOL _ignoreNodesConstrainedWidthChange;
   BOOL _queuedNodeHeightUpdate;
   BOOL _isDeallocating;
   BOOL _performingBatchUpdates;
@@ -248,7 +257,7 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
 
 - (void)configureWithDataControllerClass:(Class)dataControllerClass eventLog:(ASEventLog *)eventLog
 {
-  _layoutController = [[ASFlowLayoutController alloc] initWithScrollOption:ASFlowLayoutDirectionVertical];
+  _layoutController = [[ASTableLayoutController alloc] initWithTableView:self];
   
   _rangeController = [[ASRangeController alloc] init];
   _rangeController.layoutController = _layoutController;
@@ -258,8 +267,6 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
   _dataController = [[dataControllerClass alloc] initWithDataSource:self eventLog:eventLog];
   _dataController.delegate = _rangeController;
   _dataController.environmentDelegate = self;
-  
-  _layoutController.dataSource = _dataController;
 
   _leadingScreensForBatching = 2.0;
   _batchContext = [[ASBatchContext alloc] init];
@@ -267,9 +274,6 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
   _automaticallyAdjustsContentOffset = NO;
   
   _nodesConstrainedWidth = self.bounds.size.width;
-  // If the initial size is 0, expect a size change very soon which is part of the initial configuration
-  // and should not trigger a relayout.
-  _ignoreNodesConstrainedWidthChange = (_nodesConstrainedWidth == 0);
   
   _proxyDelegate = [[ASTableViewProxy alloc] initWithTarget:nil interceptor:self];
   super.delegate = (id<UITableViewDelegate>)_proxyDelegate;
@@ -689,19 +693,14 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
 
 - (void)layoutSubviews
 {
+  // Remeasure all rows if our row width has changed.
   CGFloat constrainedWidth = self.bounds.size.width - [self sectionIndexWidth];
-  if (_nodesConstrainedWidth != constrainedWidth) {
+  if (constrainedWidth > 0 && _nodesConstrainedWidth != constrainedWidth) {
     _nodesConstrainedWidth = constrainedWidth;
 
-    // First width change occurs during initial configuration. An expensive relayout pass is unnecessary at that time
-    // and should be avoided, assuming that the initial data loading automatically runs shortly afterward.
-    if (_ignoreNodesConstrainedWidthChange) {
-      _ignoreNodesConstrainedWidthChange = NO;
-    } else {
-      [self beginUpdates];
-      [_dataController relayoutAllNodes];
-      [self endUpdatesAnimated:(ASDisplayNodeLayerHasAnimations(self.layer) == NO) completion:nil];
-    }
+    [self beginUpdates];
+    [_dataController relayoutAllNodes];
+    [self endUpdatesAnimated:(ASDisplayNodeLayerHasAnimations(self.layer) == NO) completion:nil];
   }
   
   // To ensure _nodesConstrainedWidth is up-to-date for every usage, this call to super must be done last
@@ -862,6 +861,7 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
     [_rangeController configureContentView:cell.contentView forCellNode:node];
 
     cell.node = node;
+    cell.selectedBackgroundView = node.selectedBackgroundView;
   }
 
   return cell;
@@ -1612,7 +1612,7 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
 
 - (ASSizeRange)dataController:(ASDataController *)dataController constrainedSizeForNodeAtIndexPath:(NSIndexPath *)indexPath
 {
-  ASSizeRange constrainedSize = kInvalidSizeRange;
+  ASSizeRange constrainedSize = ASSizeRangeZero;
   if (_asyncDelegateFlags.tableNodeConstrainedSizeForRow) {
     GET_TABLENODE_OR_RETURN(tableNode, constrainedSize);
     ASSizeRange delegateConstrainedSize = [_asyncDelegate tableNode:tableNode constrainedSizeForRowAtIndexPath:indexPath];
@@ -1666,7 +1666,7 @@ static NSString * const kCellReuseIdentifier = @"_ASTableViewCell";
 
 #pragma mark - ASDataControllerEnvironmentDelegate
 
-- (id<ASEnvironment>)dataControllerEnvironment
+- (id<ASTraitEnvironment>)dataControllerEnvironment
 {
   return self.tableNode;
 }

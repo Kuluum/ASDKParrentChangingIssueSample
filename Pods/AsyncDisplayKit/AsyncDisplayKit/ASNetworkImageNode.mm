@@ -8,17 +8,17 @@
 //  of patent rights can be found in the PATENTS file in the same directory.
 //
 
-#import "ASNetworkImageNode.h"
+#import <AsyncDisplayKit/ASNetworkImageNode.h>
 
-#import "ASBasicImageDownloader.h"
-#import "ASDisplayNodeExtras.h"
-#import "ASDisplayNode+FrameworkSubclasses.h"
-#import "ASEqualityHelpers.h"
-#import "ASInternalHelpers.h"
-#import "ASImageContainerProtocolCategories.h"
+#import <AsyncDisplayKit/ASBasicImageDownloader.h>
+#import <AsyncDisplayKit/ASDisplayNodeExtras.h>
+#import <AsyncDisplayKit/ASDisplayNode+FrameworkSubclasses.h>
+#import <AsyncDisplayKit/ASEqualityHelpers.h>
+#import <AsyncDisplayKit/ASInternalHelpers.h>
+#import <AsyncDisplayKit/ASImageContainerProtocolCategories.h>
 
 #if PIN_REMOTE_IMAGE
-#import "ASPINRemoteImageDownloader.h"
+#import <AsyncDisplayKit/ASPINRemoteImageDownloader.h>
 #endif
 
 static const CGSize kMinReleaseImageOnBackgroundSize = {20.0, 20.0};
@@ -114,7 +114,12 @@ static const CGSize kMinReleaseImageOnBackgroundSize = {20.0, 20.0};
 {
   ASDN::MutexLocker l(__instanceLock__);
   
-  _imageWasSetExternally = (image != nil && _URL == nil);
+  _imageWasSetExternally = (image != nil);
+  if (_imageWasSetExternally) {
+    ASDisplayNodeAssertNil(_URL, @"Directly setting an image on an ASNetworkImageNode causes it to behave like an ASImageNode instead of an ASNetworkImageNode. If this is what you want, set the URL to nil first.");
+    [self _cancelDownloadAndClearImage];
+    _URL = nil;
+  }
   
   [self _setImage:image];
 }
@@ -133,6 +138,8 @@ static const CGSize kMinReleaseImageOnBackgroundSize = {20.0, 20.0};
 {
   {
     ASDN::MutexLocker l(__instanceLock__);
+    
+    ASDisplayNodeAssert(_imageWasSetExternally == NO, @"Setting a URL to an ASNetworkImageNode after setting an image changes its behavior from an ASImageNode to an ASNetworkImageNode. If this is what you want, set the image to nil first.");
     
     _imageWasSetExternally = NO;
     
@@ -414,17 +421,22 @@ static const CGSize kMinReleaseImageOnBackgroundSize = {20.0, 20.0};
     } callbackQueue:dispatch_get_main_queue() withDownloadIdentifier:newDownloadIDForProgressBlock];
   }
 
-  // Update state.
+  // Update state local state with lock held.
   {
     ASDN::MutexLocker l(__instanceLock__);
+    // Check if the oldDownloadIDForProgressBlock still is the same as the _downloadIdentifierForProgressBlock
     if (_downloadIdentifierForProgressBlock == oldDownloadIDForProgressBlock) {
       _downloadIdentifierForProgressBlock = newDownloadIDForProgressBlock;
-    } else {
+    } else if (newDownloadIDForProgressBlock != nil) {
+      // If this is not the case another thread did change the _downloadIdentifierForProgressBlock already so
+      // we have to deregister the newDownloadIDForProgressBlock that we registered above
       clearAndReattempt = YES;
     }
   }
   
   if (clearAndReattempt) {
+    // In this case another thread changed the _downloadIdentifierForProgressBlock before we finished registering
+    // the new progress block for newDownloadIDForProgressBlock ID. Let's clear it now and reattempt to register
     [_downloader setProgressImageBlock:nil callbackQueue:dispatch_get_main_queue() withDownloadIdentifier:newDownloadIDForProgressBlock];
     [self _updateProgressImageBlockOnDownloaderIfNeeded];
   }

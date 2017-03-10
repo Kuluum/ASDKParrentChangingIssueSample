@@ -13,11 +13,13 @@
 // These methods must never be called or overridden by other classes.
 //
 
-#import "ASDisplayNode.h"
-#import "ASThread.h"
-#import "ASObjectDescriptionHelpers.h"
+#import <Foundation/Foundation.h>
+#import <AsyncDisplayKit/ASDisplayNode.h>
+#import <AsyncDisplayKit/ASObjectDescriptionHelpers.h>
 
 NS_ASSUME_NONNULL_BEGIN
+
+@protocol ASInterfaceStateDelegate;
 
 /**
  Hierarchy state is propagated from nodes to all of their children when certain behaviors are required from the subtree.
@@ -47,7 +49,8 @@ typedef NS_OPTIONS(NSUInteger, ASHierarchyState)
   /** One of the supernodes of this node is performing a transition.
       Any layout calculated during this state should not be applied immediately, but pending until later. */
   ASHierarchyStateLayoutPending           = 1 << 3,
-  ASHierarchyStateVisualizeLayout         = 1 << 4
+  ASHierarchyStateYogaLayoutEnabled       = 1 << 4,
+  ASHierarchyStateYogaLayoutMeasuring     = 1 << 5
 };
 
 ASDISPLAYNODE_INLINE BOOL ASHierarchyStateIncludesLayoutPending(ASHierarchyState hierarchyState)
@@ -57,12 +60,17 @@ ASDISPLAYNODE_INLINE BOOL ASHierarchyStateIncludesLayoutPending(ASHierarchyState
 
 ASDISPLAYNODE_INLINE BOOL ASHierarchyStateIncludesRangeManaged(ASHierarchyState hierarchyState)
 {
-    return ((hierarchyState & ASHierarchyStateRangeManaged) == ASHierarchyStateRangeManaged);
+  return ((hierarchyState & ASHierarchyStateRangeManaged) == ASHierarchyStateRangeManaged);
 }
 
-ASDISPLAYNODE_INLINE BOOL ASHierarchyStateIncludesVisualizeLayout(ASHierarchyState hierarchyState)
+ASDISPLAYNODE_INLINE BOOL ASHierarchyStateIncludesYogaLayoutMeasuring(ASHierarchyState hierarchyState)
 {
-  return ((hierarchyState & ASHierarchyStateVisualizeLayout) == ASHierarchyStateVisualizeLayout);
+  return ((hierarchyState & ASHierarchyStateYogaLayoutMeasuring) == ASHierarchyStateYogaLayoutMeasuring);
+}
+
+ASDISPLAYNODE_INLINE BOOL ASHierarchyStateIncludesYogaLayoutEnabled(ASHierarchyState hierarchyState)
+{
+  return ((hierarchyState & ASHierarchyStateYogaLayoutEnabled) == ASHierarchyStateYogaLayoutEnabled);
 }
 
 ASDISPLAYNODE_INLINE BOOL ASHierarchyStateIncludesRasterized(ASHierarchyState hierarchyState)
@@ -108,6 +116,9 @@ __unused static NSString * _Nonnull NSStringFromASHierarchyState(ASHierarchyStat
 
 // Thread safe way to access the bounds of the node
 @property (nonatomic, assign) CGRect threadSafeBounds;
+
+// delegate to inform of ASInterfaceState changes (used by ASNodeController)
+@property (nonatomic, weak) id<ASInterfaceStateDelegate> interfaceStateDelegate;
 
 // These methods are recursive, and either union or remove the provided interfaceState to all sub-elements.
 - (void)enterInterfaceState:(ASInterfaceState)interfaceState;

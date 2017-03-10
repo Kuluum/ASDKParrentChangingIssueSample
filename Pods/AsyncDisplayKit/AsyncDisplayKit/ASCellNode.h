@@ -169,16 +169,22 @@ typedef NS_ENUM(NSUInteger, ASCellNodeVisibilityEvent) {
  */
 @property (nonatomic) UITableViewCellSelectionStyle selectionStyle;
 
+/* @abstract The view used as the background of the cell when it is selected.
+ * ASTableView uses these properties when configuring UITableViewCells that host ASCellNodes.
+ * ASCollectionView uses these properties when configuring UICollectionViewCells that host ASCellNodes.
+ */
+@property (nonatomic, strong, nullable) UIView *selectedBackgroundView;
+
 /* @abstract The accessory type view on the right side of the cell. Please take care of your ASLayoutSpec so that doesn't overlay the accessoryView
  * @default UITableViewCellAccessoryNone
  * ASTableView uses these properties when configuring UITableViewCells that host ASCellNodes.
  */
 @property (nonatomic) UITableViewCellAccessoryType accessoryType;
 
-/* @abstract The seperator inset of the cell seperator line
+/* @abstract The inset of the cell separator line
  * ASTableView uses these properties when configuring UITableViewCells that host ASCellNodes.
  */
-@property (nonatomic) UIEdgeInsets seperatorInset;
+@property (nonatomic) UIEdgeInsets separatorInset;
 
 @end
 
